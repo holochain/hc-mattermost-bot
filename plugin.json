@@ -1,0 +1,23 @@
+{
+  "id": "org.holochain.mm-plugin",
+  "name": "Holochain MM Plugin",
+  "description": "Automate Holochain team processes by integrating with Mattermost",
+  "homepage_url": "https://github.com/holochain/mm-plugin",
+  "support_url": "https://github.com/holochain/mm-plugin/issues",
+  "icon_path": "assets/starter-template-icon.svg",
+  "min_server_version": "10.0.0",
+  "server": {
+    "executables": {
+      "linux-amd64": "server/dist/plugin-linux-amd64",
+      "linux-arm64": "server/dist/plugin-linux-arm64",
+      "darwin-amd64": "server/dist/plugin-darwin-amd64",
+      "darwin-arm64": "server/dist/plugin-darwin-arm64",
+      "windows-amd64": "server/dist/plugin-windows-amd64.exe"
+    }
+  },
+  "settings_schema": {
+    "header": "",
+    "footer": "",
+    "settings": []
+  }
+}
