@@ -1,4 +1,7 @@
-# MatterMost plugin
+# Mattermost plugin
+
+This repository has copied work from the [Mattermost plugin starter template](https://github.com/mattermost/mattermost-plugin-starter-template).
+Please refer to that template for more instructions about using it!
 
 ## Set up a local MatterMost instance
 
@@ -35,4 +38,21 @@ Finally, create an admin user so you can get started.
 
 ```shell
  docker compose exec mattermost mmctl --local user create --email test@local.net --username test --password testtest --system-admin
+```
+
+## Build the plugin
+
+Check that your environment is ready to go by running
+
+```shell
+make all
+```
+
+Then deploy the plugin to your Mattermost instance:
+
+```shell
+export MM_SERVICESETTINGS_SITEURL="http://localhost:8065"
+export MM_ADMIN_USERNAME="test"
+export MM_ADMIN_PASSWORD="test1234"
+make deploy
 ```
