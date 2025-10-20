@@ -1,6 +1,6 @@
 {
   "id": "org.holochain.mm-plugin",
-  "name": "Holochain MM Plugin",
+  "name": "Holochain",
   "description": "Automate Holochain team processes by integrating with Mattermost",
   "homepage_url": "https://github.com/holochain/mm-plugin",
   "support_url": "https://github.com/holochain/mm-plugin/issues",
@@ -18,6 +18,37 @@
   "settings_schema": {
     "header": "",
     "footer": "",
-    "settings": []
+    "settings": [
+      {
+        "key": "webhook_secret_token",
+        "display_name": "The secret token to validate incoming webhooks",
+        "type": "text",
+        "help_text": "This should have been configured in GitHub, see the [documentation](https://docs.github.com/en/webhooks/using-webhooks/creating-webhooks)"
+      },
+      {
+        "key": "mattermost_team_name",
+        "display_name": "Mattermost Team Name",
+        "type": "text",
+        "help_text": "The name of the Mattermost team where notifications will be sent"
+      },
+      {
+        "key": "mattermost_issue_feed_channel_name",
+        "display_name": "Issue Feed Channel Name",
+        "type": "text",
+        "help_text": "The name of the Mattermost channel for issue created notifications"
+      },
+      {
+        "key": "mattermost_pull_request_channel_name",
+        "display_name": "Pull Request Channel Name",
+        "type": "text",
+        "help_text": "The name of the Mattermost channel for pull request notifications"
+      },
+      {
+        "key": "mattermost_release_created_channel_name",
+        "display_name": "Release Created Channel Name",
+        "type": "text",
+        "help_text": "The name of the Mattermost channel for release created notifications"
+      }
+    ]
   }
 }

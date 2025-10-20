@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cbrgm/githubevents/v2/githubevents"
 	"github.com/holochain/mm-plugin/server/command"
 	"github.com/holochain/mm-plugin/server/store/kvstore"
 	"github.com/mattermost/mattermost/server/public/model"
@@ -34,7 +35,11 @@ type Plugin struct {
 
 	// configuration is the active plugin configuration. Consult getConfiguration and
 	// setConfiguration for usage.
-	configuration *configuration
+	configuration *Configuration
+
+	botUserId *string
+
+	eventHandler *githubevents.EventHandler
 }
 
 // OnActivate is invoked when the plugin is activated. If an error is returned, the plugin will be deactivated.
@@ -57,6 +62,7 @@ func (p *Plugin) OnActivate() error {
 
 	p.backgroundJob = job
 
+	// Ensure the bot user is created, or get the ID of the existing bot user.
 	botUserId, err := p.client.Bot.EnsureBot(&model.Bot{
 		Username:    "holochain-bot",
 		DisplayName: "Holochain Bot",
@@ -66,28 +72,8 @@ func (p *Plugin) OnActivate() error {
 		return errors.Wrap(err, "failed to ensure bot account")
 	}
 
-	teams, err := p.client.Team.List()
-	if err != nil || len(teams) == 0 {
-		return errors.Wrap(err, "failed to get teams")
-	}
-
-	for _, team := range teams {
-		_, err = p.client.Team.CreateMember(team.Id, botUserId)
-	}
-
-	channel, err := p.client.Channel.GetByName(teams[0].Id, "town-square", false)
-	if err != nil || channel == nil {
-		return errors.Wrap(err, "failed to get town-square channel")
-	}
-
-	err = p.client.Post.CreatePost(&model.Post{
-		UserId:    botUserId,
-		ChannelId: channel.Id,
-		Message:   "Holochain plugin activated!",
-	})
-	if err != nil {
-		return errors.Wrap(err, "failed to create post on activation")
-	}
+	// Store the bot user ID for later use.
+	p.botUserId = &botUserId
 
 	return nil
 }
