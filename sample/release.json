@@ -1,0 +1,20 @@
+{
+  "action": "released",
+  "release": {
+    "name": "holochain-0.5.6",
+    "tag_name": "holochain-0.5.6",
+    "html_url": "https://github.com/holochain/holochain/releases/tag/holochain-0.5.6"
+  },
+  "repository": {
+    "id": 1296269,
+    "owner": {
+      "name": "holochain"
+    },
+    "name": "holochain",
+    "full_name": "holochain/holochain"
+  },
+  "sender": {
+    "login": "holochain",
+    "id": 1
+  }
+}

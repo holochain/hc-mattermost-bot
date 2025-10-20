@@ -1,10 +1,10 @@
 {
   "action": "opened",
-  "issue": {
-    "title": "It's an issue!",
-    "url": "https://api.github.com/repos/octocat/Hello-World/issues/1347",
-    "html_url": "https://github.com/octocat/Hello-World/issues/1347",
-    "number": 1347,
+  "pull_request": {
+    "title": "It's another pull request!",
+    "url": "https://api.github.com/repos/octocat/Hello-World/pulls/122",
+    "html_url": "https://github.com/octocat/Hello-World/pull/122",
+    "number": 122,
     "draft": false
   },
   "repository": {
