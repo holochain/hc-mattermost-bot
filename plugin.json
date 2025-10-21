@@ -1,6 +1,7 @@
 {
   "id": "org.holochain.mm-plugin",
   "name": "Holochain",
+  "version": "0.1.0",
   "description": "Automate Holochain team processes by integrating with Mattermost",
   "homepage_url": "https://github.com/holochain/mm-plugin",
   "support_url": "https://github.com/holochain/mm-plugin/issues",
