@@ -25,14 +25,23 @@ func (p *Plugin) startGithubEventListener() {
 	if teamName != "" && issueFeed != "" {
 		eventHandler.OnIssuesEventOpened(
 			func(ctx context.Context, deliveryID string, eventName string, event *github.IssuesEvent) error {
+				repo := event.GetRepo()
 				issue := event.GetIssue()
 
-				// Skip reopened issues
-				if issue.GetStateReason() == "reopened" {
+				tag := fmt.Sprintf("#%s.%s.%d", repo.GetOwner().GetName(), repo.GetName(), issue.GetNumber())
+				posts, err := p.findPostsByTerm(tag, teamName, issueFeed)
+				if err != nil {
+					return err
+				}
+				if len(posts) > 0 {
+					// Skip creating duplicate posts for this issue
 					return nil
 				}
 
-				return p.sendNewIssueMessage(issue, teamName, issueFeed)
+				return p.sendMessage(
+					fmt.Sprintf("%s\n%s\n%s", issue.GetTitle(), issue.GetHTMLURL(), tag),
+					teamName,
+					issueFeed, false)
 			})
 	} else {
 		println("Mattermost team name or issue feed channel name is not set, skipping issue event listener setup")
@@ -49,10 +58,10 @@ func (p *Plugin) startGithubEventListener() {
 					return nil
 				}
 
-				term := fmt.Sprintf("#%s.%s.%d", repo.GetOwner().GetName(), repo.GetName(), pullRequest.GetNumber())
-				posts, err := p.findPostsByTerm(term, teamName, prFeed)
+				tag := fmt.Sprintf("#%s.%s.%d", repo.GetOwner().GetName(), repo.GetName(), pullRequest.GetNumber())
+				posts, err := p.findPostsByTerm(tag, teamName, prFeed)
 				if err != nil {
-					return fmt.Errorf("failed to find posts by term %s: %w", term, err)
+					return fmt.Errorf("failed to find posts by tag %s: %w", tag, err)
 				}
 
 				if len(posts) > 0 {
@@ -72,7 +81,7 @@ func (p *Plugin) startGithubEventListener() {
 				}
 
 				return p.sendMessage(
-					fmt.Sprintf("#%s.%s.%d %s\n\n%s", repo.GetOwner().GetName(), repo.GetName(), pullRequest.GetNumber(), pullRequest.GetTitle(), pullRequest.GetHTMLURL()),
+					fmt.Sprintf("%s\n%s\n%s", pullRequest.GetTitle(), pullRequest.GetHTMLURL(), tag),
 					teamName,
 					prFeed, true)
 			})
@@ -82,10 +91,10 @@ func (p *Plugin) startGithubEventListener() {
 				repo := event.GetRepo()
 				pullRequest := event.GetPullRequest()
 
-				term := fmt.Sprintf("#%s.%s.%d", repo.GetOwner().GetName(), repo.GetName(), pullRequest.GetNumber())
-				posts, err := p.findPostsByTerm(term, teamName, prFeed)
+				tag := fmt.Sprintf("#%s.%s.%d", repo.GetOwner().GetName(), repo.GetName(), pullRequest.GetNumber())
+				posts, err := p.findPostsByTerm(tag, teamName, prFeed)
 				if err != nil {
-					return fmt.Errorf("failed to find posts by term %s: %w", term, err)
+					return fmt.Errorf("failed to find posts by tag %s: %w", tag, err)
 				}
 
 				if len(posts) > 0 {
@@ -105,7 +114,7 @@ func (p *Plugin) startGithubEventListener() {
 				}
 
 				return p.sendMessage(
-					fmt.Sprintf("#%s.%s.%d %s\n\n%s", repo.GetOwner().GetName(), repo.GetName(), pullRequest.GetNumber(), pullRequest.GetTitle(), pullRequest.GetHTMLURL()),
+					fmt.Sprintf("%s\n%s\n%s", pullRequest.GetTitle(), pullRequest.GetHTMLURL(), tag),
 					teamName,
 					prFeed, true)
 			})
@@ -125,20 +134,42 @@ func (p *Plugin) startGithubEventListener() {
 	if teamName != "" && releaseFeed != "" {
 		eventHandler.OnReleaseEventReleased(
 			func(ctx context.Context, deliveryID string, eventName string, event *github.ReleaseEvent) error {
+				repo := event.GetRepo()
 				release := event.GetRelease()
 
+				tag := fmt.Sprintf("#%s.%s.%s", repo.GetOwner().GetName(), repo.GetName(), release.GetTagName())
+				posts, err := p.findPostsByTerm(tag, teamName, releaseFeed)
+				if err != nil {
+					return fmt.Errorf("failed to find posts by tag %s: %w", releaseFeed, err)
+				}
+				if len(posts) > 0 {
+					// Skip creating duplicate events
+					return nil
+				}
+
 				return p.sendMessage(
-					fmt.Sprintf("%s - %s\n\n%s", release.GetName(), release.GetTagName(), release.GetHTMLURL()),
+					fmt.Sprintf("%s\n%s", releaseTable(repo, release, false), tag),
 					teamName,
 					releaseFeed, false)
 			})
 
 		eventHandler.OnReleaseEventPreReleased(
 			func(ctx context.Context, deliveryID string, eventName string, event *github.ReleaseEvent) error {
+				repo := event.GetRepo()
 				release := event.GetRelease()
 
+				tag := fmt.Sprintf("#%s.%s.%s", repo.GetOwner().GetName(), repo.GetName(), release.GetTagName())
+				posts, err := p.findPostsByTerm(tag, teamName, releaseFeed)
+				if err != nil {
+					return fmt.Errorf("failed to find posts by tag %s: %w", releaseFeed, err)
+				}
+				if len(posts) > 0 {
+					// Skip creating duplicate events
+					return nil
+				}
+
 				return p.sendMessage(
-					fmt.Sprintf("Pre-release: %s - %s\n\n%s", release.GetName(), release.GetTagName(), release.GetHTMLURL()),
+					fmt.Sprintf("%s\n%s", releaseTable(repo, release, true), tag),
 					teamName,
 					releaseFeed, false)
 			})
@@ -149,11 +180,23 @@ func (p *Plugin) startGithubEventListener() {
 	p.eventHandler = eventHandler
 }
 
-func (p *Plugin) sendNewIssueMessage(issue *github.Issue, teamName, issueFeed string) error {
-	return p.sendMessage(
-		fmt.Sprintf("%s\n\n%s", issue.GetTitle(), issue.GetHTMLURL()),
-		teamName,
-		issueFeed, false)
+func releaseTable(repo *github.Repository, release *github.RepositoryRelease, isPreRelease bool) string {
+	var preReleaseRow string
+	if isPreRelease {
+		preReleaseRow = "| Pre-release | Yes |"
+	} else {
+		preReleaseRow = "| Pre-release | No |"
+	}
+
+	return fmt.Sprintf(`
+| Key        | Value |
+| ---------- | ----- |
+| Repository | %s    |
+| Name       | %s    |
+| Tag        | %s    |
+| URL        | %s    |
+%s
+`, repo.GetName(), release.GetName(), release.GetTagName(), release.GetHTMLURL(), preReleaseRow)
 }
 
 func (p *Plugin) sendMessage(message, teamName, channelName string, pinned bool) error {

@@ -4,17 +4,14 @@ go 1.25
 
 require (
 	github.com/cbrgm/githubevents/v2 v2.8.0
-	github.com/golang/mock v1.6.0
 	github.com/google/go-github/v76 v76.0.0
 	github.com/mattermost/mattermost/server/public v0.1.21
 	github.com/pkg/errors v0.9.1
-	github.com/stretchr/testify v1.11.1
 )
 
 require (
 	github.com/beevik/etree v1.6.0 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
-	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/dyatlov/go-opengraph/opengraph v0.0.0-20220524092352-606d7b1e5f8a // indirect
 	github.com/fatih/color v1.18.0 // indirect
 	github.com/francoispqt/gojay v1.2.13 // indirect
@@ -42,10 +39,8 @@ require (
 	github.com/pborman/uuid v1.2.1 // indirect
 	github.com/pelletier/go-toml v1.9.5 // indirect
 	github.com/philhofer/fwd v1.2.0 // indirect
-	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/russellhaering/goxmldsig v1.5.0 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
-	github.com/stretchr/objx v0.5.3 // indirect
 	github.com/tinylib/msgp v1.4.0 // indirect
 	github.com/vmihailenco/msgpack/v5 v5.4.1 // indirect
 	github.com/vmihailenco/tagparser/v2 v2.0.0 // indirect

@@ -37,7 +37,7 @@ docker compose restart mattermost
 Finally, create an admin user so you can get started.
 
 ```shell
- docker compose exec mattermost mmctl --local user create --email test@local.net --username test --password testtest --system-admin
+ docker compose exec mattermost mmctl --local user create --email test@local.net --username test --password test1234 --system-admin
 ```
 
 ## Build the plugin
@@ -56,3 +56,20 @@ export MM_ADMIN_USERNAME="test"
 export MM_ADMIN_PASSWORD="test1234"
 make deploy
 ```
+
+## Develop the plugin
+
+Once you've deployed the plugin to Mattermost, it needs to be configured:
+
+![settings.png](settings.png)
+
+Note that you'll also need to create these channels before the plugin will be able to send messages to them. The plugin
+will not create new channels.
+
+Now, run the provided script to push test data:
+
+```shell
+./send_event.sh
+```
+
+You should see some posts. From there, you're ready to start making changes!
