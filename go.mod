@@ -10,6 +10,7 @@ require (
 )
 
 require (
+	github.com/agnivade/levenshtein v1.2.1 // indirect
 	github.com/beevik/etree v1.6.0 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/dyatlov/go-opengraph/opengraph v0.0.0-20220524092352-606d7b1e5f8a // indirect
