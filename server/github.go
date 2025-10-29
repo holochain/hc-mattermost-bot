@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -27,6 +28,20 @@ func (p *Plugin) startGithubEventListener() {
 			func(ctx context.Context, deliveryID string, eventName string, event *github.IssuesEvent) error {
 				repo := event.GetRepo()
 				issue := event.GetIssue()
+
+				if strings.TrimSpace(repo.GetOwner().GetName()) == "" {
+					payloadJson, err := json.Marshal(event)
+					if err == nil {
+						p.API.LogInfo("Repository owner name is empty", "payload", string(payloadJson))
+					}
+				}
+
+				if strings.TrimSpace(repo.GetName()) == "" {
+					payloadJson, err := json.Marshal(event)
+					if err == nil {
+						p.API.LogInfo("Repository name is empty", "payload", string(payloadJson))
+					}
+				}
 
 				tag := fmt.Sprintf("#%s.%s.%d", repo.GetOwner().GetName(), repo.GetName(), issue.GetNumber())
 				posts, err := p.findPostsByTerm(tag, teamName, issueFeed)
@@ -56,6 +71,20 @@ func (p *Plugin) startGithubEventListener() {
 				// Skip draft pull requests
 				if pullRequest.GetDraft() {
 					return nil
+				}
+
+				if strings.TrimSpace(repo.GetOwner().GetName()) == "" {
+					payloadJson, err := json.Marshal(event)
+					if err == nil {
+						p.API.LogInfo("Repository owner name is empty", "payload", string(payloadJson))
+					}
+				}
+
+				if strings.TrimSpace(repo.GetName()) == "" {
+					payloadJson, err := json.Marshal(event)
+					if err == nil {
+						p.API.LogInfo("Repository name is empty", "payload", string(payloadJson))
+					}
 				}
 
 				tag := fmt.Sprintf("#%s.%s.%d", repo.GetOwner().GetName(), repo.GetName(), pullRequest.GetNumber())
@@ -91,6 +120,20 @@ func (p *Plugin) startGithubEventListener() {
 				repo := event.GetRepo()
 				pullRequest := event.GetPullRequest()
 
+				if strings.TrimSpace(repo.GetOwner().GetName()) == "" {
+					payloadJson, err := json.Marshal(event)
+					if err == nil {
+						p.API.LogInfo("Repository owner name is empty", "payload", string(payloadJson))
+					}
+				}
+
+				if strings.TrimSpace(repo.GetName()) == "" {
+					payloadJson, err := json.Marshal(event)
+					if err == nil {
+						p.API.LogInfo("Repository name is empty", "payload", string(payloadJson))
+					}
+				}
+
 				tag := fmt.Sprintf("#%s.%s.%d", repo.GetOwner().GetName(), repo.GetName(), pullRequest.GetNumber())
 				posts, err := p.findPostsByTerm(tag, teamName, prFeed)
 				if err != nil {
@@ -123,6 +166,21 @@ func (p *Plugin) startGithubEventListener() {
 			func(ctx context.Context, deliveryID string, eventName string, event *github.PullRequestEvent) error {
 				repo := event.GetRepo()
 				pullRequest := event.GetPullRequest()
+
+				if strings.TrimSpace(repo.GetOwner().GetName()) == "" {
+					payloadJson, err := json.Marshal(event)
+					if err == nil {
+						p.API.LogInfo("Repository owner name is empty", "payload", string(payloadJson))
+					}
+				}
+
+				if strings.TrimSpace(repo.GetName()) == "" {
+					payloadJson, err := json.Marshal(event)
+					if err == nil {
+						p.API.LogInfo("Repository name is empty", "payload", string(payloadJson))
+					}
+				}
+
 				term := fmt.Sprintf("#%s.%s.%d", repo.GetOwner().GetName(), repo.GetName(), pullRequest.GetNumber())
 
 				return p.unpinMessages(term, teamName, prFeed)
@@ -136,6 +194,20 @@ func (p *Plugin) startGithubEventListener() {
 			func(ctx context.Context, deliveryID string, eventName string, event *github.ReleaseEvent) error {
 				repo := event.GetRepo()
 				release := event.GetRelease()
+
+				if strings.TrimSpace(repo.GetOwner().GetName()) == "" {
+					payloadJson, err := json.Marshal(event)
+					if err == nil {
+						p.API.LogInfo("Repository owner name is empty", "payload", string(payloadJson))
+					}
+				}
+
+				if strings.TrimSpace(repo.GetName()) == "" {
+					payloadJson, err := json.Marshal(event)
+					if err == nil {
+						p.API.LogInfo("Repository name is empty", "payload", string(payloadJson))
+					}
+				}
 
 				tag := fmt.Sprintf("#%s.%s.%s", repo.GetOwner().GetName(), repo.GetName(), release.GetTagName())
 				posts, err := p.findPostsByTerm(tag, teamName, releaseFeed)
@@ -157,6 +229,20 @@ func (p *Plugin) startGithubEventListener() {
 			func(ctx context.Context, deliveryID string, eventName string, event *github.ReleaseEvent) error {
 				repo := event.GetRepo()
 				release := event.GetRelease()
+
+				if strings.TrimSpace(repo.GetOwner().GetName()) == "" {
+					payloadJson, err := json.Marshal(event)
+					if err == nil {
+						p.API.LogInfo("Repository owner name is empty", "payload", string(payloadJson))
+					}
+				}
+
+				if strings.TrimSpace(repo.GetName()) == "" {
+					payloadJson, err := json.Marshal(event)
+					if err == nil {
+						p.API.LogInfo("Repository name is empty", "payload", string(payloadJson))
+					}
+				}
 
 				tag := fmt.Sprintf("#%s.%s.%s", repo.GetOwner().GetName(), repo.GetName(), release.GetTagName())
 				posts, err := p.findPostsByTerm(tag, teamName, releaseFeed)
