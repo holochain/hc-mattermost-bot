@@ -30,7 +30,7 @@ func (p *Plugin) startGithubEventListener() {
 				issue := event.GetIssue()
 
 				owner := ""
-				if strings.TrimSpace(repo.GetOwner().GetName()) == "" {
+				if strings.TrimSpace(repo.GetOwner().GetName()) != "" {
 					owner = event.GetRepo().GetName()
 				} else if issue.Repository != nil && issue.Repository.GetOwner() != nil && strings.TrimSpace(issue.Repository.GetOwner().GetName()) != "" {
 					owner = issue.Repository.GetOwner().GetName()
@@ -61,6 +61,10 @@ func (p *Plugin) startGithubEventListener() {
 					// Skip creating duplicate posts for this issue
 					return nil
 				}
+
+				// TODO temp
+				payloadJson, err := json.Marshal(event)
+				_ = p.sendMessage(string(payloadJson), teamName, issueFeed, false)
 
 				return p.sendMessage(
 					fmt.Sprintf("%s\n%s\n%s", issue.GetTitle(), issue.GetHTMLURL(), tag),
@@ -122,6 +126,10 @@ func (p *Plugin) startGithubEventListener() {
 					return nil
 				}
 
+				// TODO temp
+				payloadJson, err := json.Marshal(event)
+				_ = p.sendMessage(string(payloadJson), teamName, issueFeed, false)
+
 				return p.sendMessage(
 					fmt.Sprintf("%s\n%s\n%s", pullRequest.GetTitle(), pullRequest.GetHTMLURL(), tag),
 					teamName,
@@ -170,6 +178,10 @@ func (p *Plugin) startGithubEventListener() {
 					// Pull request message already exists, do not send a duplicate
 					return nil
 				}
+
+				// TODO temp
+				payloadJson, err := json.Marshal(event)
+				_ = p.sendMessage(string(payloadJson), teamName, issueFeed, false)
 
 				return p.sendMessage(
 					fmt.Sprintf("%s\n%s\n%s", pullRequest.GetTitle(), pullRequest.GetHTMLURL(), tag),
@@ -238,6 +250,10 @@ func (p *Plugin) startGithubEventListener() {
 					return nil
 				}
 
+				// TODO temp
+				payloadJson, err := json.Marshal(event)
+				_ = p.sendMessage(string(payloadJson), teamName, issueFeed, false)
+
 				return p.sendMessage(
 					fmt.Sprintf("%s\n%s", releaseTable(repo, release, false), tag),
 					teamName,
@@ -279,6 +295,10 @@ func (p *Plugin) startGithubEventListener() {
 					// Skip creating duplicate events
 					return nil
 				}
+
+				// TODO temp
+				payloadJson, err := json.Marshal(event)
+				_ = p.sendMessage(string(payloadJson), teamName, issueFeed, false)
 
 				return p.sendMessage(
 					fmt.Sprintf("%s\n%s", releaseTable(repo, release, true), tag),
