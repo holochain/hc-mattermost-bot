@@ -30,24 +30,8 @@ func (p *Plugin) startGithubEventListener() {
 				repo := event.GetRepo()
 				issue := event.GetIssue()
 
-				if repo.GetOwner() == nil || strings.TrimSpace(repo.GetOwner().GetLogin()) == "" {
-					payloadJson, err := json.Marshal(event)
-					if err != nil {
-						return err
-					}
-
-					p.API.LogInfo("Repository owner login is empty", "payload", string(payloadJson))
-					return errors.New("repository owner login is empty")
-				}
-
-				if strings.TrimSpace(repo.GetName()) == "" {
-					payloadJson, err := json.Marshal(event)
-					if err != nil {
-						return err
-					}
-
-					p.API.LogInfo("Repository name is empty", "payload", string(payloadJson))
-					return errors.New("repository name is empty")
+				if err := p.validateRepoProperties(repo, event); err != nil {
+					return err
 				}
 
 				tag := fmt.Sprintf("#%s.%s.%d", repo.GetOwner().GetLogin(), repo.GetName(), issue.GetNumber())
