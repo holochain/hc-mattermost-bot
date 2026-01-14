@@ -2,12 +2,14 @@ package main
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
 
 	"github.com/cbrgm/githubevents/v2/githubevents"
-	"github.com/google/go-github/v76/github"
+	"github.com/google/go-github/v81/github"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin"
 )
@@ -28,7 +30,11 @@ func (p *Plugin) startGithubEventListener() {
 				repo := event.GetRepo()
 				issue := event.GetIssue()
 
-				tag := fmt.Sprintf("#%s.%s.%d", repo.GetOwner().GetName(), repo.GetName(), issue.GetNumber())
+				if err := p.validateRepoProperties(repo, event); err != nil {
+					return err
+				}
+
+				tag := fmt.Sprintf("#%s.%s.%d", repo.GetOwner().GetLogin(), repo.GetName(), issue.GetNumber())
 				posts, err := p.findPostsByTerm(tag, teamName, issueFeed)
 				if err != nil {
 					return err
@@ -58,7 +64,11 @@ func (p *Plugin) startGithubEventListener() {
 					return nil
 				}
 
-				tag := fmt.Sprintf("#%s.%s.%d", repo.GetOwner().GetName(), repo.GetName(), pullRequest.GetNumber())
+				if err := p.validateRepoProperties(repo, event); err != nil {
+					return err
+				}
+
+				tag := fmt.Sprintf("#%s.%s.%d", repo.GetOwner().GetLogin(), repo.GetName(), pullRequest.GetNumber())
 				posts, err := p.findPostsByTerm(tag, teamName, prFeed)
 				if err != nil {
 					return fmt.Errorf("failed to find posts by tag %s: %w", tag, err)
@@ -91,7 +101,11 @@ func (p *Plugin) startGithubEventListener() {
 				repo := event.GetRepo()
 				pullRequest := event.GetPullRequest()
 
-				tag := fmt.Sprintf("#%s.%s.%d", repo.GetOwner().GetName(), repo.GetName(), pullRequest.GetNumber())
+				if err := p.validateRepoProperties(repo, event); err != nil {
+					return err
+				}
+
+				tag := fmt.Sprintf("#%s.%s.%d", repo.GetOwner().GetLogin(), repo.GetName(), pullRequest.GetNumber())
 				posts, err := p.findPostsByTerm(tag, teamName, prFeed)
 				if err != nil {
 					return fmt.Errorf("failed to find posts by tag %s: %w", tag, err)
@@ -123,7 +137,12 @@ func (p *Plugin) startGithubEventListener() {
 			func(ctx context.Context, deliveryID string, eventName string, event *github.PullRequestEvent) error {
 				repo := event.GetRepo()
 				pullRequest := event.GetPullRequest()
-				term := fmt.Sprintf("#%s.%s.%d", repo.GetOwner().GetName(), repo.GetName(), pullRequest.GetNumber())
+
+				if err := p.validateRepoProperties(repo, event); err != nil {
+					return err
+				}
+
+				term := fmt.Sprintf("#%s.%s.%d", repo.GetOwner().GetLogin(), repo.GetName(), pullRequest.GetNumber())
 
 				return p.unpinMessages(term, teamName, prFeed)
 			})
@@ -137,7 +156,11 @@ func (p *Plugin) startGithubEventListener() {
 				repo := event.GetRepo()
 				release := event.GetRelease()
 
-				tag := fmt.Sprintf("#%s.%s.%s", repo.GetOwner().GetName(), repo.GetName(), release.GetTagName())
+				if err := p.validateRepoProperties(repo, event); err != nil {
+					return err
+				}
+
+				tag := fmt.Sprintf("#%s.%s.%s", repo.GetOwner().GetLogin(), repo.GetName(), release.GetTagName())
 				posts, err := p.findPostsByTerm(tag, teamName, releaseFeed)
 				if err != nil {
 					return fmt.Errorf("failed to find posts by tag %s: %w", releaseFeed, err)
@@ -158,7 +181,11 @@ func (p *Plugin) startGithubEventListener() {
 				repo := event.GetRepo()
 				release := event.GetRelease()
 
-				tag := fmt.Sprintf("#%s.%s.%s", repo.GetOwner().GetName(), repo.GetName(), release.GetTagName())
+				if err := p.validateRepoProperties(repo, event); err != nil {
+					return err
+				}
+
+				tag := fmt.Sprintf("#%s.%s.%s", repo.GetOwner().GetLogin(), repo.GetName(), release.GetTagName())
 				posts, err := p.findPostsByTerm(tag, teamName, releaseFeed)
 				if err != nil {
 					return fmt.Errorf("failed to find posts by tag %s: %w", releaseFeed, err)
@@ -296,10 +323,6 @@ out:
 			return nil, fmt.Errorf("failed to list team members: %w", err)
 		}
 
-		if len(memberList) < 100 {
-			break
-		}
-
 		for _, member := range memberList {
 			if member.UserId == botUserId {
 				foundBotUserInTeam = true
@@ -307,11 +330,18 @@ out:
 			}
 		}
 
+		if len(memberList) < 100 {
+			break
+		}
+
 		page += 1
 	}
 
 	if !foundBotUserInTeam {
 		_, err = p.client.Team.CreateMember(team.Id, botUserId)
+		if err != nil {
+			return nil, fmt.Errorf("failed to add bot to team %s: %w", teamName, err)
+		}
 	}
 
 	return team, nil
@@ -332,4 +362,28 @@ func (p *Plugin) ServeHTTP(_ *plugin.Context, _ http.ResponseWriter, r *http.Req
 	} else {
 		fmt.Printf("unknown path: %s\n", r.URL.Path)
 	}
+}
+
+func (p *Plugin) validateRepoProperties(repo *github.Repository, event interface{}) error {
+	if repo.GetOwner() == nil || strings.TrimSpace(repo.GetOwner().GetLogin()) == "" {
+		payloadJson, err := json.Marshal(event)
+		if err != nil {
+			return err
+		}
+
+		p.API.LogInfo("Repository owner login is empty", "payload", string(payloadJson))
+		return errors.New("repository owner login is empty")
+	}
+
+	if strings.TrimSpace(repo.GetName()) == "" {
+		payloadJson, err := json.Marshal(event)
+		if err != nil {
+			return err
+		}
+
+		p.API.LogInfo("Repository name is empty", "payload", string(payloadJson))
+		return errors.New("repository name is empty")
+	}
+
+	return nil
 }

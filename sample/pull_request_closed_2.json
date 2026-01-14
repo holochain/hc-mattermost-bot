@@ -10,7 +10,7 @@
   "repository": {
     "id": 1296269,
     "owner": {
-      "name": "octocat"
+      "login": "octocat"
     },
     "name": "Hello-World",
     "full_name": "octocat/Hello-World"
