@@ -8,7 +8,7 @@
   "repository": {
     "id": 1296269,
     "owner": {
-      "name": "holochain"
+      "login": "holochain"
     },
     "name": "holochain",
     "full_name": "holochain/holochain"

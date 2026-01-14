@@ -29,20 +29,13 @@ func (p *Plugin) startGithubEventListener() {
 				repo := event.GetRepo()
 				issue := event.GetIssue()
 
-				owner := ""
-				if strings.TrimSpace(repo.GetOwner().GetName()) != "" {
-					owner = event.GetRepo().GetName()
-				} else if issue.Repository != nil && issue.Repository.GetOwner() != nil && strings.TrimSpace(issue.Repository.GetOwner().GetName()) != "" {
-					owner = issue.Repository.GetOwner().GetName()
-				}
-
-				if owner == "" {
+				if repo.GetOwner() == nil || strings.TrimSpace(repo.GetOwner().GetLogin()) == "" {
 					payloadJson, err := json.Marshal(event)
 					if err != nil {
 						return err
 					}
 
-					p.API.LogInfo("Repository owner name is empty", "payload", string(payloadJson))
+					p.API.LogInfo("Repository owner login is empty", "payload", string(payloadJson))
 				}
 
 				if strings.TrimSpace(repo.GetName()) == "" {
@@ -52,7 +45,7 @@ func (p *Plugin) startGithubEventListener() {
 					}
 				}
 
-				tag := fmt.Sprintf("#%s.%s.%d", owner, repo.GetName(), issue.GetNumber())
+				tag := fmt.Sprintf("#%s.%s.%d", repo.GetOwner().GetLogin(), repo.GetName(), issue.GetNumber())
 				posts, err := p.findPostsByTerm(tag, teamName, issueFeed)
 				if err != nil {
 					return err
@@ -61,10 +54,6 @@ func (p *Plugin) startGithubEventListener() {
 					// Skip creating duplicate posts for this issue
 					return nil
 				}
-
-				// TODO temp
-				payloadJson, err := json.Marshal(event)
-				_ = p.sendMessage(string(payloadJson), teamName, issueFeed, false)
 
 				return p.sendMessage(
 					fmt.Sprintf("%s\n%s\n%s", issue.GetTitle(), issue.GetHTMLURL(), tag),
@@ -86,13 +75,13 @@ func (p *Plugin) startGithubEventListener() {
 					return nil
 				}
 
-				if strings.TrimSpace(repo.GetOwner().GetName()) == "" {
+				if repo.GetOwner() == nil || strings.TrimSpace(repo.GetOwner().GetLogin()) == "" {
 					payloadJson, err := json.Marshal(event)
 					if err != nil {
 						return err
 					}
 
-					p.API.LogInfo("Repository owner name is empty", "payload", string(payloadJson))
+					p.API.LogInfo("Repository owner login is empty", "payload", string(payloadJson))
 				}
 
 				if strings.TrimSpace(repo.GetName()) == "" {
@@ -104,7 +93,7 @@ func (p *Plugin) startGithubEventListener() {
 					p.API.LogInfo("Repository name is empty", "payload", string(payloadJson))
 				}
 
-				tag := fmt.Sprintf("#%s.%s.%d", repo.GetOwner().GetName(), repo.GetName(), pullRequest.GetNumber())
+				tag := fmt.Sprintf("#%s.%s.%d", repo.GetOwner().GetLogin(), repo.GetName(), pullRequest.GetNumber())
 				posts, err := p.findPostsByTerm(tag, teamName, prFeed)
 				if err != nil {
 					return fmt.Errorf("failed to find posts by tag %s: %w", tag, err)
@@ -125,10 +114,6 @@ func (p *Plugin) startGithubEventListener() {
 					// Pull request message already exists, do not send a duplicate
 					return nil
 				}
-
-				// TODO temp
-				payloadJson, err := json.Marshal(event)
-				_ = p.sendMessage(string(payloadJson), teamName, issueFeed, false)
 
 				return p.sendMessage(
 					fmt.Sprintf("%s\n%s\n%s", pullRequest.GetTitle(), pullRequest.GetHTMLURL(), tag),
@@ -141,13 +126,13 @@ func (p *Plugin) startGithubEventListener() {
 				repo := event.GetRepo()
 				pullRequest := event.GetPullRequest()
 
-				if strings.TrimSpace(repo.GetOwner().GetName()) == "" {
+				if repo.GetOwner() == nil || strings.TrimSpace(repo.GetOwner().GetLogin()) == "" {
 					payloadJson, err := json.Marshal(event)
 					if err != nil {
 						return err
 					}
 
-					p.API.LogInfo("Repository owner name is empty", "payload", string(payloadJson))
+					p.API.LogInfo("Repository owner login is empty", "payload", string(payloadJson))
 				}
 
 				if strings.TrimSpace(repo.GetName()) == "" {
@@ -157,7 +142,7 @@ func (p *Plugin) startGithubEventListener() {
 					}
 				}
 
-				tag := fmt.Sprintf("#%s.%s.%d", repo.GetOwner().GetName(), repo.GetName(), pullRequest.GetNumber())
+				tag := fmt.Sprintf("#%s.%s.%d", repo.GetOwner().GetLogin(), repo.GetName(), pullRequest.GetNumber())
 				posts, err := p.findPostsByTerm(tag, teamName, prFeed)
 				if err != nil {
 					return fmt.Errorf("failed to find posts by tag %s: %w", tag, err)
@@ -179,10 +164,6 @@ func (p *Plugin) startGithubEventListener() {
 					return nil
 				}
 
-				// TODO temp
-				payloadJson, err := json.Marshal(event)
-				_ = p.sendMessage(string(payloadJson), teamName, issueFeed, false)
-
 				return p.sendMessage(
 					fmt.Sprintf("%s\n%s\n%s", pullRequest.GetTitle(), pullRequest.GetHTMLURL(), tag),
 					teamName,
@@ -194,13 +175,13 @@ func (p *Plugin) startGithubEventListener() {
 				repo := event.GetRepo()
 				pullRequest := event.GetPullRequest()
 
-				if strings.TrimSpace(repo.GetOwner().GetName()) == "" {
+				if repo.GetOwner() == nil || strings.TrimSpace(repo.GetOwner().GetLogin()) == "" {
 					payloadJson, err := json.Marshal(event)
 					if err != nil {
 						return err
 					}
 
-					p.API.LogInfo("Repository owner name is empty", "payload", string(payloadJson))
+					p.API.LogInfo("Repository owner login is empty", "payload", string(payloadJson))
 				}
 
 				if strings.TrimSpace(repo.GetName()) == "" {
@@ -210,7 +191,7 @@ func (p *Plugin) startGithubEventListener() {
 					}
 				}
 
-				term := fmt.Sprintf("#%s.%s.%d", repo.GetOwner().GetName(), repo.GetName(), pullRequest.GetNumber())
+				term := fmt.Sprintf("#%s.%s.%d", repo.GetOwner().GetLogin(), repo.GetName(), pullRequest.GetNumber())
 
 				return p.unpinMessages(term, teamName, prFeed)
 			})
@@ -224,13 +205,13 @@ func (p *Plugin) startGithubEventListener() {
 				repo := event.GetRepo()
 				release := event.GetRelease()
 
-				if strings.TrimSpace(repo.GetOwner().GetName()) == "" {
+				if repo.GetOwner() == nil || strings.TrimSpace(repo.GetOwner().GetLogin()) == "" {
 					payloadJson, err := json.Marshal(event)
 					if err != nil {
 						return err
 					}
 
-					p.API.LogInfo("Repository owner name is empty", "payload", string(payloadJson))
+					p.API.LogInfo("Repository owner login is empty", "payload", string(payloadJson))
 				}
 
 				if strings.TrimSpace(repo.GetName()) == "" {
@@ -240,7 +221,7 @@ func (p *Plugin) startGithubEventListener() {
 					}
 				}
 
-				tag := fmt.Sprintf("#%s.%s.%s", repo.GetOwner().GetName(), repo.GetName(), release.GetTagName())
+				tag := fmt.Sprintf("#%s.%s.%s", repo.GetOwner().GetLogin(), repo.GetName(), release.GetTagName())
 				posts, err := p.findPostsByTerm(tag, teamName, releaseFeed)
 				if err != nil {
 					return fmt.Errorf("failed to find posts by tag %s: %w", releaseFeed, err)
@@ -249,10 +230,6 @@ func (p *Plugin) startGithubEventListener() {
 					// Skip creating duplicate events
 					return nil
 				}
-
-				// TODO temp
-				payloadJson, err := json.Marshal(event)
-				_ = p.sendMessage(string(payloadJson), teamName, issueFeed, false)
 
 				return p.sendMessage(
 					fmt.Sprintf("%s\n%s", releaseTable(repo, release, false), tag),
@@ -265,18 +242,13 @@ func (p *Plugin) startGithubEventListener() {
 				repo := event.GetRepo()
 				release := event.GetRelease()
 
-				owner := ""
-				if event.GetOrg() != nil && strings.TrimSpace(event.GetOrg().GetName()) != "" {
-					owner = event.GetOrg().GetName()
-				} else if strings.TrimSpace(repo.GetOwner().GetName()) == "" {
-					owner = event.GetRepo().GetName()
-				}
-
-				if owner == "" {
+				if strings.TrimSpace(repo.GetOwner().GetLogin()) == "" {
 					payloadJson, err := json.Marshal(event)
-					if err == nil {
-						p.API.LogInfo("Repository owner name is empty", "payload", string(payloadJson))
+					if err != nil {
+						return err
 					}
+
+					p.API.LogInfo("Repository owner login is empty", "payload", string(payloadJson))
 				}
 
 				if strings.TrimSpace(repo.GetName()) == "" {
@@ -286,7 +258,7 @@ func (p *Plugin) startGithubEventListener() {
 					}
 				}
 
-				tag := fmt.Sprintf("#%s.%s.%s", owner, repo.GetName(), release.GetTagName())
+				tag := fmt.Sprintf("#%s.%s.%s", repo.GetOwner().GetLogin(), repo.GetName(), release.GetTagName())
 				posts, err := p.findPostsByTerm(tag, teamName, releaseFeed)
 				if err != nil {
 					return fmt.Errorf("failed to find posts by tag %s: %w", releaseFeed, err)
@@ -295,10 +267,6 @@ func (p *Plugin) startGithubEventListener() {
 					// Skip creating duplicate events
 					return nil
 				}
-
-				// TODO temp
-				payloadJson, err := json.Marshal(event)
-				_ = p.sendMessage(string(payloadJson), teamName, issueFeed, false)
 
 				return p.sendMessage(
 					fmt.Sprintf("%s\n%s", releaseTable(repo, release, true), tag),
