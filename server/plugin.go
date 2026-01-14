@@ -98,7 +98,7 @@ func (p *Plugin) selfCheck() {
 			}
 
 			for _, channel := range channels {
-				println("channel:", channel.Name)
+				p.API.LogInfo("channel:", channel.Name)
 				if channel.Name != "" {
 					channelNames = append(channelNames, channel.Name)
 				} else {
@@ -167,7 +167,6 @@ func (p *Plugin) selfCheck() {
 			suggestedNames, err := suggestChannelNames(issueFeedChannelName, channelNames)
 			if err != nil {
 				p.API.LogWarn("self check failed: unable to recommend channel names", "err", err)
-				return
 			}
 
 			p.API.LogWarn("self check error: unable to find configured channel, did you mean one of these?", "channelName", issueFeedChannelName, "suggestedNames", suggestedNames)
