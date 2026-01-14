@@ -60,6 +60,11 @@ func (p *Plugin) OnDeactivate() error {
 }
 
 func (p *Plugin) selfCheck() {
+	if p.configuration == nil {
+		p.API.LogWarn("self check skipped: configuration not yet loaded")
+		return
+	}
+
 	teamName := p.configuration.MattermostTeamName
 	if teamName != "" {
 		team, err := p.client.Team.GetByName(teamName)
