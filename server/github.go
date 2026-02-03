@@ -350,17 +350,17 @@ out:
 // ServerHTTP handles HTTP requests made to the plugin.
 func (p *Plugin) ServeHTTP(_ *plugin.Context, _ http.ResponseWriter, r *http.Request) {
 	if r.URL.Path == "/github" {
-		println("GitHub event listener called")
+		p.API.LogInfo("GitHub event listener called")
 		if p.eventHandler != nil {
-			println("Handling GitHub event request")
+			p.API.LogInfo("Handling GitHub event request")
 			if err := p.eventHandler.HandleEventRequest(r); err != nil {
-				fmt.Printf("error handling github event request: %v\n", err)
+				p.API.LogWarn("error handling github event request: %v\n", err)
 			}
 		} else {
-			fmt.Println("event handler is nil")
+			p.API.LogWarn("event handler is nil")
 		}
 	} else {
-		fmt.Printf("unknown path: %s\n", r.URL.Path)
+		p.API.LogInfo("unknown path: %s\n", r.URL.Path)
 	}
 }
 
