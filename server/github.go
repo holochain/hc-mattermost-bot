@@ -64,6 +64,11 @@ func (p *Plugin) startGithubEventListener() {
 					return nil
 				}
 
+				// Skip pull requests that don't have any requested reviewers
+				if (pullRequest.RequestedTeams == nil || len(pullRequest.RequestedTeams) == 0) && (pullRequest.RequestedReviewers == nil || len(pullRequest.RequestedReviewers) == 0) {
+					return nil
+				}
+
 				if err := p.validateRepoProperties(repo, event); err != nil {
 					return err
 				}
@@ -101,6 +106,11 @@ func (p *Plugin) startGithubEventListener() {
 				repo := event.GetRepo()
 				pullRequest := event.GetPullRequest()
 
+				// Skip ready pull requests that don't have any requested reviewers
+				if (pullRequest.RequestedTeams == nil || len(pullRequest.RequestedTeams) == 0) && (pullRequest.RequestedReviewers == nil || len(pullRequest.RequestedReviewers) == 0) {
+					return nil
+				}
+
 				if err := p.validateRepoProperties(repo, event); err != nil {
 					return err
 				}
@@ -132,6 +142,47 @@ func (p *Plugin) startGithubEventListener() {
 					teamName,
 					prFeed, true)
 			})
+
+		eventHandler.OnPullRequestEventReviewRequested(func(ctx context.Context, deliveryID string, eventName string, event *github.PullRequestEvent) error {
+			repo := event.GetRepo()
+			pullRequest := event.GetPullRequest()
+
+			// Skip draft pull requests
+			if pullRequest.GetDraft() {
+				return nil
+			}
+
+			if err := p.validateRepoProperties(repo, event); err != nil {
+				return err
+			}
+
+			tag := fmt.Sprintf("#%s.%s.%d", repo.GetOwner().GetLogin(), repo.GetName(), pullRequest.GetNumber())
+			posts, err := p.findPostsByTerm(tag, teamName, prFeed)
+			if err != nil {
+				return fmt.Errorf("failed to find posts by tag %s: %w", tag, err)
+			}
+
+			if len(posts) > 0 {
+				// Ensure that the post is pinned
+				for _, post := range posts {
+					if !post.IsPinned {
+						post.IsPinned = true
+						err = p.client.Post.UpdatePost(post)
+						if err != nil {
+							return fmt.Errorf("failed to update post in channel %s: %w", prFeed, err)
+						}
+					}
+				}
+
+				// Pull request message already exists, do not send a duplicate
+				return nil
+			}
+
+			return p.sendMessage(
+				fmt.Sprintf("%s\n%s\n%s", pullRequest.GetTitle(), pullRequest.GetHTMLURL(), tag),
+				teamName,
+				prFeed, true)
+		})
 
 		eventHandler.OnPullRequestEventClosed(
 			func(ctx context.Context, deliveryID string, eventName string, event *github.PullRequestEvent) error {
@@ -290,14 +341,16 @@ func (p *Plugin) findPostsByTerm(term, teamName, channelName string) ([]*model.P
 		return nil, fmt.Errorf("failed to get channel by name %s: %w", channelName, err)
 	}
 
+	// Search only within the specific channel to avoid timeout
+	searchTerms := fmt.Sprintf("%s in:%s from:%s", term, channelName, *botUserId)
 	posts, err := p.client.Post.SearchPostsInTeam(team.Id, []*model.SearchParams{{
-		Terms: term,
+		Terms: searchTerms,
 	}})
 	if err != nil {
 		return nil, fmt.Errorf("failed to search posts in team %s: %w", teamName, err)
 	}
 
-	// Filter posts to only those in the specified channel
+	// Filter to ensure only posts from the bot in the specified channel
 	var filteredPosts []*model.Post
 	for _, post := range posts {
 		if post.ChannelId == channel.Id && post.UserId == *botUserId {
