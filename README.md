@@ -1,5 +1,5 @@
 # Mattermost plugin
-
+test
 This repository has copied work from the [Mattermost plugin starter template](https://github.com/mattermost/mattermost-plugin-starter-template).
 Please refer to that template for more instructions about using it!
 
