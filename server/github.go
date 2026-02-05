@@ -24,6 +24,12 @@ func (p *Plugin) startGithubEventListener() {
 	prFeed := strings.TrimSpace(config.MattermostPullRequestChannelName)
 	releaseFeed := strings.TrimSpace(config.MattermostReleaseCreatedChannelName)
 
+	// Log all received events, to debug what information is actually coming from GitHub
+	eventHandler.OnBeforeAny(func(ctx context.Context, deliveryID string, eventName string, event interface{}) error {
+		p.API.LogInfo("Received GitHub event", "event_name", eventName, "delivery_id", deliveryID)
+		return nil
+	})
+
 	if teamName != "" && issueFeed != "" {
 		eventHandler.OnIssuesEventOpened(
 			func(ctx context.Context, deliveryID string, eventName string, event *github.IssuesEvent) error {
@@ -61,11 +67,13 @@ func (p *Plugin) startGithubEventListener() {
 
 				// Skip draft pull requests
 				if pullRequest.GetDraft() {
+					p.API.LogInfo("Pull request is a draft, skipping notification", "repo", repo.GetFullName(), "pr_number", pullRequest.GetNumber())
 					return nil
 				}
 
 				// Skip pull requests that don't have any requested reviewers
 				if (pullRequest.RequestedTeams == nil || len(pullRequest.RequestedTeams) == 0) && (pullRequest.RequestedReviewers == nil || len(pullRequest.RequestedReviewers) == 0) {
+					p.API.LogInfo("Pull request has no requested reviewers or teams, skipping notification", "repo", repo.GetFullName(), "pr_number", pullRequest.GetNumber())
 					return nil
 				}
 
@@ -108,6 +116,7 @@ func (p *Plugin) startGithubEventListener() {
 
 				// Skip ready pull requests that don't have any requested reviewers
 				if (pullRequest.RequestedTeams == nil || len(pullRequest.RequestedTeams) == 0) && (pullRequest.RequestedReviewers == nil || len(pullRequest.RequestedReviewers) == 0) {
+					p.API.LogInfo("Pull request marked as ready for review but has no requested reviewers, skipping notification", "repo", repo.GetFullName(), "pr_number", pullRequest.GetNumber())
 					return nil
 				}
 
@@ -149,6 +158,7 @@ func (p *Plugin) startGithubEventListener() {
 
 			// Skip draft pull requests
 			if pullRequest.GetDraft() {
+				p.API.LogInfo("Pull request review requested but is a draft, skipping notification", "repo", repo.GetFullName(), "pr_number", pullRequest.GetNumber())
 				return nil
 			}
 
