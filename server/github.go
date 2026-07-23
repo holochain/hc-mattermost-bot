@@ -7,11 +7,13 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/cbrgm/githubevents/v2/githubevents"
 	"github.com/google/go-github/v81/github"
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin"
+	"github.com/mattermost/mattermost/server/public/pluginapi"
 )
 
 func (p *Plugin) startGithubEventListener() {
@@ -61,51 +63,7 @@ func (p *Plugin) startGithubEventListener() {
 
 	if teamName != "" && prFeed != "" {
 		pullRequestUpdatedHook := func(ctx context.Context, deliveryID string, eventName string, event *github.PullRequestEvent) error {
-			repo := event.GetRepo()
-			pullRequest := event.GetPullRequest()
-
-			// Skip draft pull requests
-			if pullRequest.GetDraft() {
-				p.API.LogInfo("Pull request is a draft, skipping notification", "repo", repo.GetFullName(), "pr_number", pullRequest.GetNumber())
-				return nil
-			}
-
-			// Skip pull requests that don't have any requested reviewers
-			if (pullRequest.RequestedTeams == nil || len(pullRequest.RequestedTeams) == 0) && (pullRequest.RequestedReviewers == nil || len(pullRequest.RequestedReviewers) == 0) {
-				p.API.LogInfo("Pull request has no requested reviewers or teams, skipping notification", "repo", repo.GetFullName(), "pr_number", pullRequest.GetNumber())
-				return nil
-			}
-
-			if err := p.validateRepoProperties(repo, event); err != nil {
-				return err
-			}
-
-			tag := fmt.Sprintf("#%s.%s.%d", repo.GetOwner().GetLogin(), repo.GetName(), pullRequest.GetNumber())
-			posts, err := p.findPostsByTag(tag, teamName, prFeed)
-			if err != nil {
-				return fmt.Errorf("failed to find posts by tag %s: %w", tag, err)
-			}
-
-			if len(posts) > 0 {
-				// Ensure that the post is pinned
-				for _, post := range posts {
-					if !post.IsPinned {
-						post.IsPinned = true
-						err = p.client.Post.UpdatePost(post)
-						if err != nil {
-							return fmt.Errorf("failed to update post in channel %s: %w", prFeed, err)
-						}
-					}
-				}
-
-				// Pull request message already exists, do not send a duplicate
-				return nil
-			}
-
-			return p.sendMessage(
-				fmt.Sprintf("%s\n%s\n%s", pullRequest.GetTitle(), pullRequest.GetHTMLURL(), tag),
-				teamName,
-				prFeed, true)
+			return p.handlePullRequestUpdated(teamName, prFeed, event)
 		}
 
 		eventHandler.OnPullRequestEventOpened(pullRequestUpdatedHook)
@@ -185,6 +143,108 @@ func (p *Plugin) startGithubEventListener() {
 	}
 
 	p.eventHandler = eventHandler
+}
+
+// handlePullRequestUpdated decides whether a pull request should be posted (or re-pinned) to
+// Mattermost. GitHub can deliver multiple webhook events for the same pull request in quick
+// succession (e.g. "opened" and "review_requested" when a non-draft PR is created with reviewers
+// already assigned), and each delivery is handled on its own goroutine with no coordination
+// between them. To avoid posting the same pull request twice, creating the post is gated behind
+// an atomic claim so only one concurrent delivery actually creates it.
+func (p *Plugin) handlePullRequestUpdated(teamName, prFeed string, event *github.PullRequestEvent) error {
+	repo := event.GetRepo()
+	pullRequest := event.GetPullRequest()
+
+	// Skip draft pull requests
+	if pullRequest.GetDraft() {
+		p.API.LogInfo("Pull request is a draft, skipping notification", "repo", repo.GetFullName(), "pr_number", pullRequest.GetNumber())
+		return nil
+	}
+
+	// Skip pull requests that don't have any requested reviewers
+	if (pullRequest.RequestedTeams == nil || len(pullRequest.RequestedTeams) == 0) && (pullRequest.RequestedReviewers == nil || len(pullRequest.RequestedReviewers) == 0) {
+		p.API.LogInfo("Pull request has no requested reviewers or teams, skipping notification", "repo", repo.GetFullName(), "pr_number", pullRequest.GetNumber())
+		return nil
+	}
+
+	if err := p.validateRepoProperties(repo, event); err != nil {
+		return err
+	}
+
+	tag := fmt.Sprintf("#%s.%s.%d", repo.GetOwner().GetLogin(), repo.GetName(), pullRequest.GetNumber())
+	posts, err := p.findPostsByTag(tag, teamName, prFeed)
+	if err != nil {
+		return fmt.Errorf("failed to find posts by tag %s: %w", tag, err)
+	}
+
+	if len(posts) > 0 {
+		// Ensure that the post is pinned
+		for _, post := range posts {
+			if !post.IsPinned {
+				post.IsPinned = true
+				err = p.client.Post.UpdatePost(post)
+				if err != nil {
+					return fmt.Errorf("failed to update post in channel %s: %w", prFeed, err)
+				}
+			}
+		}
+
+		// Pull request message already exists, do not send a duplicate
+		return nil
+	}
+
+	// Multiple webhook deliveries for this pull request can reach this point having each seen no
+	// existing post. Only the delivery that wins this atomic claim is allowed to create it.
+	claimed, err := p.tryClaimPost(tag)
+	if err != nil {
+		return fmt.Errorf("failed to claim post for tag %s: %w", tag, err)
+	}
+	if !claimed {
+		p.API.LogInfo("Pull request post already claimed by another event, skipping duplicate", "tag", tag)
+		return nil
+	}
+
+	if err := p.sendMessage(
+		fmt.Sprintf("%s\n%s\n%s", pullRequest.GetTitle(), pullRequest.GetHTMLURL(), tag),
+		teamName,
+		prFeed, true); err != nil {
+		// Posting failed, so release the claim to allow a future event to retry.
+		p.releasePostClaim(tag)
+		return err
+	}
+
+	return nil
+}
+
+// postClaimTTL bounds how long a post claim occupies the KV store. It only needs to outlive the
+// window where a concurrent or slightly delayed duplicate delivery could still be racing against
+// the original one (near-simultaneous webhook deliveries, Mattermost search-index lag on the
+// findPostsByTag check). Once that window has passed, findPostsByTag itself is the authoritative
+// record that the pull request was already posted, so the claim no longer needs to exist.
+const postClaimTTL = time.Hour
+
+// tryClaimPost atomically claims the right to create the Mattermost post identified by tag.
+// It returns true only for the single caller that wins the race for a given tag; all other
+// concurrent or subsequent callers receive false and must not post again. The claim expires
+// after postClaimTTL so successful claims don't accumulate in the KV store indefinitely.
+func (p *Plugin) tryClaimPost(tag string) (bool, error) {
+	claimed, err := p.client.KV.Set(postClaimKey(tag), true, pluginapi.SetAtomic(nil), pluginapi.SetExpiry(postClaimTTL))
+	if err != nil {
+		return false, err
+	}
+	return claimed, nil
+}
+
+// releasePostClaim releases a claim taken by tryClaimPost, allowing a future event for the same
+// tag to retry after a failed post.
+func (p *Plugin) releasePostClaim(tag string) {
+	if err := p.client.KV.Delete(postClaimKey(tag)); err != nil {
+		p.API.LogWarn("failed to release post claim", "tag", tag, "err", err)
+	}
+}
+
+func postClaimKey(tag string) string {
+	return "post-claim:" + tag
 }
 
 func releaseTable(repo *github.Repository, release *github.RepositoryRelease, isPreRelease bool) string {
